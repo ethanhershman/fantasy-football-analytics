@@ -1,126 +1,102 @@
 """
-Phase 1 — Ingestion Script 3: FantasyPros ECR (Expert Consensus Rankings)
+Scrape 2026 ECR/ADP from DraftSharks (PPR, Sleeper, 12-team).
+Populates: adp table (source='draftsharks', season=2026).
 
-Scrapes the PPR cheatsheet from FantasyPros once per season and stores
-each player's ECR rank in the rankings table.
+The page embeds player data as a JS object (vueAppData) — no table scraping needed.
 
-Scrape policy:
-  - One request total, result saved immediately.
-  - Do not run this more than once per day.
-
-Run:
-    python ingestion/ingest_ecr.py
+Run: python ingestion/ingest_ecr.py
 """
 
-import time
+import re
+import json
 import requests
 import pandas as pd
-from bs4 import BeautifulSoup
 from sqlalchemy import text
 from db import get_engine
 
-ECR_URL = "https://www.fantasypros.com/nfl/rankings/ppr-cheatsheets.php"
-CURRENT_SEASON = 2026
-POSITIONS = ["QB", "RB", "WR", "TE"]
-
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
-    )
-}
+URL = "https://www.draftsharks.com/adp/ppr/sleeper/12"
+SEASON = 2026
+POSITIONS = {"QB", "RB", "WR", "TE"}
 
 
-def scrape_ecr() -> pd.DataFrame:
-    print(f"Scraping FantasyPros ECR from {ECR_URL}...")
-    time.sleep(2)  # polite delay before the request
+def fetch_draftsharks() -> pd.DataFrame:
+    print(f"Fetching DraftSharks ADP from {URL}...")
+    resp = requests.get(URL, timeout=20)
+    resp.raise_for_status()
 
-    response = requests.get(ECR_URL, headers=HEADERS, timeout=20)
-    response.raise_for_status()
+    # Extract the vueAppData JSON embedded in a <script> tag
+    match = re.search(r"var\s+vueAppData\s*=\s*", resp.text)
+    if not match:
+        raise ValueError("Could not find vueAppData in DraftSharks page.")
 
-    soup = BeautifulSoup(response.text, "html.parser")
-    table = soup.find("table", {"id": "rank-data"})
+    decoder = json.JSONDecoder()
+    data, _ = decoder.raw_decode(resp.text, match.end())
 
-    if table is None:
-        raise ValueError(
-            "Could not find rankings table on FantasyPros page. "
-            "The page structure may have changed."
-        )
+    teams = {t["id"]: t["abbr"] for t in data.get("teams", [])}
+    players = data.get("projections", [])
 
     rows = []
-    for tr in table.find("tbody").find_all("tr"):
-        tds = tr.find_all("td")
-        if len(tds) < 4:
+    for p in players:
+        pos = p.get("position", "")
+        if pos not in POSITIONS:
             continue
 
-        rank_text = tds[0].get_text(strip=True)
-        player_cell = tds[2]
-        pos_text = tds[3].get_text(strip=True).upper()
+        # Find the ADP entry for 12-team leagues
+        adp_entry = None
+        for key, val in p.get("adps", {}).items():
+            if val.get("league_size") == 12:
+                adp_entry = val
+                break
 
-        if not rank_text.isdigit():
+        if adp_entry is None:
             continue
-        if pos_text not in POSITIONS:
-            continue
 
-        # Player name is in a link inside the cell
-        name_tag = player_cell.find("a")
-        player_name = name_tag.get_text(strip=True) if name_tag else player_cell.get_text(strip=True)
-        # Strip team abbreviation that sometimes appears in parens, e.g. "CeeDee Lamb (DAL)"
-        if "(" in player_name:
-            player_name = player_name[:player_name.index("(")].strip()
-
+        team_id = p.get("team_id") or (p.get("team", {}) or {}).get("id")
         rows.append({
-            "player_name": player_name,
-            "position": pos_text,
-            "ecr_rank": int(rank_text),
+            "player_name": f"{p['first_name']} {p['last_name']}".strip(),
+            "position": pos,
+            "team": teams.get(team_id, ""),
+            "adp_overall": adp_entry.get("overall_pick_number"),
         })
 
-    df = pd.DataFrame(rows)
-    print(f"  Scraped {len(df)} players.")
+    df = pd.DataFrame(rows).dropna(subset=["adp_overall"])
+    df = df.sort_values("adp_overall")
+    df["adp_position_rank"] = df.groupby("position")["adp_overall"].rank(method="first").astype(int)
+    print(f"  Parsed {len(df)} players.")
     return df
 
 
-def match_to_player_ids(df: pd.DataFrame, engine) -> pd.DataFrame:
+def match_ids(df: pd.DataFrame, engine) -> pd.DataFrame:
     with engine.connect() as conn:
         players = pd.read_sql("SELECT player_id, full_name, position FROM players", conn)
-
     df["name_norm"] = df["player_name"].str.lower().str.strip()
     players["name_norm"] = players["full_name"].str.lower().str.strip()
-
-    merged = df.merge(
-        players[["player_id", "name_norm", "position"]],
-        on=["name_norm", "position"],
-        how="left",
-    )
-
-    unmatched = merged["player_id"].isna().sum()
-    if unmatched > 0:
-        print(f"  {unmatched} players unmatched (rookies or name mismatches). Dropping.")
-
+    merged = df.merge(players[["player_id", "name_norm", "position"]], on=["name_norm", "position"], how="left")
+    n = merged["player_id"].isna().sum()
+    if n:
+        print(f"  {n} unmatched (rookies/name mismatch).")
     return merged.dropna(subset=["player_id"])
 
 
 def load_ecr(engine):
-    df = scrape_ecr()
-    df = match_to_player_ids(df, engine)
+    df = fetch_draftsharks()
+    df = match_ids(df, engine)
+    df["season"] = SEASON
+    df["source"] = "draftsharks"
 
-    rows = df[["player_id", "ecr_rank"]].copy()
-    rows["season"] = CURRENT_SEASON
-    rows = rows.to_dict("records")
+    rows = df[["player_id", "season", "adp_overall", "adp_position_rank", "source"]].to_dict("records")
+    rows = [{k: (None if pd.isna(v) else v) for k, v in r.items()} for r in rows]
+    rows = [r for r in rows if r["player_id"] is not None]
 
-    upsert_sql = text("""
-        INSERT INTO rankings (player_id, season, ecr_rank)
-        VALUES (:player_id, :season, :ecr_rank)
-        ON CONFLICT (player_id, season) DO UPDATE SET
-            ecr_rank   = EXCLUDED.ecr_rank,
-            updated_at = NOW()
+    upsert = text("""
+        INSERT INTO adp (player_id, season, adp_overall, adp_position_rank, source)
+        VALUES (:player_id, :season, :adp_overall, :adp_position_rank, :source)
+        ON CONFLICT (player_id, season, source) DO UPDATE SET
+            adp_overall = EXCLUDED.adp_overall, adp_position_rank = EXCLUDED.adp_position_rank
     """)
-
     with engine.begin() as conn:
-        conn.execute(upsert_sql, rows)
-
-    print(f"  Upserted {len(rows)} ECR rankings for {CURRENT_SEASON}.")
+        conn.execute(upsert, rows)
+    print(f"  Upserted {len(rows)} ECR rows for {SEASON}.")
 
 
 if __name__ == "__main__":
@@ -128,13 +104,10 @@ if __name__ == "__main__":
     load_ecr(engine)
 
     with engine.connect() as conn:
-        result = conn.execute(text("""
-            SELECT p.position, COUNT(*) AS ranked_players
-            FROM rankings r
-            JOIN players p USING (player_id)
-            WHERE r.season = 2026
-            GROUP BY p.position ORDER BY p.position
-        """))
-        print(f"\nECR rankings loaded for {CURRENT_SEASON}:")
-        for row in result:
-            print(f"  {row.position}: {row.ranked_players} players ranked")
+        for row in conn.execute(text("""
+            SELECT position, COUNT(*) AS n
+            FROM adp JOIN players USING (player_id)
+            WHERE season = :season AND source = 'draftsharks'
+            GROUP BY position ORDER BY position
+        """), {"season": SEASON}):
+            print(f"  {row.position}: {row.n} players")

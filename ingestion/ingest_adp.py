@@ -1,11 +1,8 @@
 """
-Phase 1 — Ingestion Script 2: Historical ADP via Fantasy Football Calculator API
+Fetch historical ADP from Fantasy Football Calculator API.
+Populates: adp table (source='ffc').
 
-Pulls PPR ADP for each season in SEASONS from the free FFC REST API.
-No API key required.
-
-Run:
-    python ingestion/ingest_adp.py
+Run: python ingestion/ingest_adp.py
 """
 
 import time
@@ -14,95 +11,72 @@ import pandas as pd
 from sqlalchemy import text
 from db import get_engine
 
-SEASONS = [2020, 2021, 2022, 2023, 2024, 2025]
+SEASONS = [2020, 2021, 2022, 2023, 2024]
 FFC_URL = "https://fantasyfootballcalculator.com/api/v1/adp/ppr?teams=12&year={year}"
 POSITIONS = ["QB", "RB", "WR", "TE"]
 
 
-def fetch_adp_for_season(season: int) -> pd.DataFrame:
-    url = FFC_URL.format(year=season)
-    response = requests.get(url, timeout=15)
-    response.raise_for_status()
-    data = response.json()
+def _clean(rows):
+    return [{k: (None if pd.isna(v) else v) for k, v in r.items()} for r in rows]
 
-    players = data.get("players", [])
+
+def fetch_season(season: int) -> pd.DataFrame:
+    resp = requests.get(FFC_URL.format(year=season), timeout=15)
+    resp.raise_for_status()
+    players = resp.json().get("players", [])
     if not players:
-        print(f"  No data returned for {season}.")
+        print(f"  {season}: no data.")
         return pd.DataFrame()
 
     df = pd.DataFrame(players)
     df["season"] = season
-    df["source"] = "ffc_api"
-
-    # FFC returns: name, position, team, adp, times_drafted, high, low, stdev
-    df = df.rename(columns={"adp": "adp_overall", "name": "player_name"})
     df = df[df["position"].isin(POSITIONS)].copy()
-
-    # Compute position rank from adp within position
-    df = df.sort_values("adp_overall")
+    df = df.sort_values("adp").rename(columns={"adp": "adp_overall", "name": "player_name"})
     df["adp_position_rank"] = df.groupby("position")["adp_overall"].rank(method="first").astype(int)
+    return df[["player_name", "position", "season", "adp_overall", "adp_position_rank"]]
 
-    return df[["player_name", "position", "season", "adp_overall", "adp_position_rank", "source"]]
 
-
-def match_to_player_ids(df: pd.DataFrame, engine) -> pd.DataFrame:
-    """
-    FFC returns player names, not IDs. Match to player_id by name + position.
-    Unmatched players are dropped (they won't be in our roster table).
-    """
+def match_ids(df: pd.DataFrame, engine) -> pd.DataFrame:
     with engine.connect() as conn:
         players = pd.read_sql("SELECT player_id, full_name, position FROM players", conn)
-
-    # Normalize names for fuzzy matching
     df["name_norm"] = df["player_name"].str.lower().str.strip()
     players["name_norm"] = players["full_name"].str.lower().str.strip()
-
-    merged = df.merge(
-        players[["player_id", "name_norm", "position"]],
-        on=["name_norm", "position"],
-        how="left",
-    )
-
-    unmatched = merged["player_id"].isna().sum()
-    if unmatched > 0:
-        print(f"    {unmatched} players could not be matched to player_id (likely retired/injured).")
-
+    merged = df.merge(players[["player_id", "name_norm", "position"]], on=["name_norm", "position"], how="left")
+    n = merged["player_id"].isna().sum()
+    if n:
+        print(f"    {n} unmatched (retired/name mismatch).")
     return merged.dropna(subset=["player_id"])
 
 
 def load_adp(engine):
-    all_seasons = []
-
+    frames = []
     for season in SEASONS:
-        print(f"  Fetching ADP for {season}...")
-        df = fetch_adp_for_season(season)
+        print(f"  Fetching {season}...")
+        df = fetch_season(season)
         if df.empty:
             continue
-        df = match_to_player_ids(df, engine)
-        all_seasons.append(df)
-        time.sleep(1)  # be respectful to the free API
+        df = match_ids(df, engine)
+        frames.append(df)
+        time.sleep(1)
 
-    if not all_seasons:
+    if not frames:
         print("No ADP data loaded.")
         return
 
-    combined = pd.concat(all_seasons, ignore_index=True)
+    combined = pd.concat(frames, ignore_index=True)
+    combined["source"] = "ffc"
+    rows = _clean(combined[["player_id", "season", "adp_overall", "adp_position_rank", "source"]].to_dict("records"))
+    rows = [r for r in rows if r["player_id"] is not None]
 
-    rows = combined[["player_id", "season", "adp_overall", "adp_position_rank", "source"]].to_dict("records")
-    rows = [{k: (None if pd.isna(v) else v) for k, v in r.items()} for r in rows]
-
-    upsert_sql = text("""
-        INSERT INTO adp_history (player_id, season, adp_overall, adp_position_rank, source)
+    upsert = text("""
+        INSERT INTO adp (player_id, season, adp_overall, adp_position_rank, source)
         VALUES (:player_id, :season, :adp_overall, :adp_position_rank, :source)
         ON CONFLICT (player_id, season, source) DO UPDATE SET
-            adp_overall       = EXCLUDED.adp_overall,
-            adp_position_rank = EXCLUDED.adp_position_rank
+            adp_overall = EXCLUDED.adp_overall, adp_position_rank = EXCLUDED.adp_position_rank
     """)
-
     with engine.begin() as conn:
-        conn.execute(upsert_sql, rows)
-
-    print(f"  Upserted {len(rows)} ADP rows across {len(SEASONS)} seasons.")
+        conn.execute(upsert, rows)
+    print(f"  Upserted {len(rows)} ADP rows.")
 
 
 if __name__ == "__main__":
@@ -110,12 +84,8 @@ if __name__ == "__main__":
     load_adp(engine)
 
     with engine.connect() as conn:
-        result = conn.execute(text("""
-            SELECT season, COUNT(*) AS players
-            FROM adp_history
-            WHERE source = 'ffc_api'
+        for row in conn.execute(text("""
+            SELECT season, COUNT(*) AS n FROM adp WHERE source='ffc'
             GROUP BY season ORDER BY season
-        """))
-        print("\nADP rows by season:")
-        for row in result:
-            print(f"  {row.season}: {row.players} players")
+        """)):
+            print(f"  {row.season}: {row.n} players")
