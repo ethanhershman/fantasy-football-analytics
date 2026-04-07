@@ -1,11 +1,12 @@
 # Data ingestion
-nfl-data-py==0.3.3
+# nfl-data-py: install separately with --no-deps (its pandas<2.0 pin is stale)
+#   pip install --no-deps nfl-data-py
 requests==2.32.3
 beautifulsoup4==4.12.3
 
 # Data processing
-pandas==2.2.3
-numpy==2.1.3
+pandas>=2.0
+numpy>=1.26
 pyarrow==18.1.0
 
 # Database
