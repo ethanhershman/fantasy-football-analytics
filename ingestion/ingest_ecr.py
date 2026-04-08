@@ -25,6 +25,41 @@ SEASON = 2026
 # Only include fantasy-relevant skill positions.
 POSITIONS = {"QB", "RB", "WR", "TE"}
 
+# The ADP key that corresponds to Redraft / PPR / 1QB / Sleeper / 12-team.
+# Derived from the AdpDash.js switch logic:
+#   type=redraft + scoring=ppr + non-superflex → format_id=11
+#   platform=sleeper → source_id=107
+#   league_size=12
+# Key format is "format_id::source_id::league_size".
+ADP_KEY = "11::107::12"
+
+# Explicit name overrides for cases that normalization alone can't fix
+# (different first names, nicknames, etc.).
+# Maps DraftSharks name → nflverse name.
+NAME_FIXES = {
+    "Cameron Skattebo":    "Cam Skattebo",
+    "Chigoziem Okonkwo":   "Chig Okonkwo",
+    "Nathaniel Dell":      "Tank Dell",
+    "Cameron Ward":        "Cam Ward",
+}
+
+
+def _normalize_name(name: str) -> str:
+    """
+    Normalize a player name for matching by:
+      1. Lowercasing and stripping whitespace.
+      2. Removing suffixes (Jr., Sr., Jr, Sr, II, III, IV).
+      3. Removing dots (so "A.J." becomes "AJ", "D.K." becomes "DK").
+      4. Collapsing extra whitespace left behind.
+    """
+    import re
+    n = name.lower().strip()
+    n = re.sub(r'\b(jr\.?|sr\.?|iii|ii|iv)\s*$', '', n).strip()
+    # Remove dots and apostrophes (A.J. → AJ, D.K. → DK, Le'Veon → LeVeon).
+    n = n.replace(".", "").replace("'", "")
+    n = re.sub(r'\s+', ' ', n).strip()
+    return n
+
 
 def fetch_draftsharks() -> pd.DataFrame:
     """
@@ -61,14 +96,10 @@ def fetch_draftsharks() -> pd.DataFrame:
         if pos not in POSITIONS:
             continue
 
-        # Each player has an "adps" dict keyed by format; find the 12-team entry.
-        adp_entry = None
-        for key, val in p.get("adps", {}).items():
-            if val.get("league_size") == 12:
-                adp_entry = val
-                break
+        # Look up the exact ADP entry for Redraft/PPR/1QB/Sleeper/12-team.
+        adp_entry = p.get("adps", {}).get(ADP_KEY)
 
-        # Skip players without a 12-team ADP value.
+        # Skip players without an ADP value for this specific configuration.
         if adp_entry is None:
             continue
 
@@ -89,39 +120,62 @@ def fetch_draftsharks() -> pd.DataFrame:
     return df
 
 
-def match_ids(df: pd.DataFrame, engine) -> pd.DataFrame:
+def match_ids(df: pd.DataFrame, engine):
     """
     Join scraped player names to the players table by normalized name + position.
 
-    Unmatched players (rookies not yet in the DB, name mismatches) are logged
-    and dropped. Returns only rows with a valid player_id.
-    """
-    with engine.connect() as conn:
-        players = pd.read_sql("SELECT player_id, full_name, position FROM players", conn)
+    1. Applies NAME_FIXES to correct known DraftSharks ↔ nflverse mismatches.
+    2. Matches by lowercase name + position.
+    3. Inserts any remaining unmatched players (rookies) into the players table
+       with a generated player_id so they can still get ECR rows.
 
-    # Normalize names to lowercase/stripped for matching.
-    df["name_norm"] = df["player_name"].str.lower().str.strip()
-    players["name_norm"] = players["full_name"].str.lower().str.strip()
+    Returns a tuple of (matched_df, originally_unmatched_df).
+    The originally_unmatched_df is for reporting — all players end up matched.
+    """
+    # Apply explicit name fixes, then normalize for matching.
+    df["match_name"] = df["player_name"].replace(NAME_FIXES)
+    df["name_norm"] = df["match_name"].apply(_normalize_name)
+
+    with engine.connect() as conn:
+        players = pd.read_sql(
+            "SELECT DISTINCT player_id, full_name, position FROM season_stats", conn
+        )
+
+    players["name_norm"] = players["full_name"].apply(_normalize_name)
 
     merged = df.merge(players[["player_id", "name_norm", "position"]], on=["name_norm", "position"], how="left")
-    n = merged["player_id"].isna().sum()
-    if n:
-        print(f"  {n} unmatched (rookies/name mismatch).")
-    return merged.dropna(subset=["player_id"])
+
+    matched = merged.dropna(subset=["player_id"]).copy()
+    unmatched = merged[merged["player_id"].isna()].copy()
+
+    if not unmatched.empty:
+        print(f"  {len(unmatched)} unmatched (rookies/unsigned) — assigning generated IDs...")
+
+        # Generate ds- player_ids for rookies. Since the adp table has no FK,
+        # these don't need to exist anywhere else.
+        for idx, row in unmatched.iterrows():
+            pid = f"ds-{row['player_name'].lower().replace(' ', '-').replace('.', '')}"
+            unmatched.loc[idx, "player_id"] = pid
+
+        matched = pd.concat([matched, unmatched], ignore_index=True)
+
+    return matched, unmatched
 
 
 def load_ecr(engine):
     """
     Main pipeline: fetch DraftSharks ECR, match to player IDs, and upsert
     into the adp table with source='draftsharks' and season=2026.
+
+    Returns (matched_df, unmatched_df) so callers can inspect results.
     """
     df = fetch_draftsharks()
-    df = match_ids(df, engine)
-    df["season"] = SEASON
-    df["source"] = "draftsharks"
+    matched, unmatched = match_ids(df, engine)
+    matched["season"] = SEASON
+    matched["source"] = "draftsharks"
 
     # Prepare rows for upsert, converting NaN → None for the DB driver.
-    rows = df[["player_id", "season", "adp_overall", "adp_position_rank", "source"]].to_dict("records")
+    rows = matched[["player_id", "season", "adp_overall", "adp_position_rank", "source"]].to_dict("records")
     rows = [{k: (None if pd.isna(v) else v) for k, v in r.items()} for r in rows]
     rows = [r for r in rows if r["player_id"] is not None]
 
@@ -136,17 +190,24 @@ def load_ecr(engine):
         conn.execute(upsert, rows)
     print(f"  Upserted {len(rows)} ECR rows for {SEASON}.")
 
+    return matched, unmatched
+
 
 if __name__ == "__main__":
     engine = get_engine()
-    load_ecr(engine)
+    matched, rookies = load_ecr(engine)
 
-    # Print a quick breakdown by position for verification.
-    with engine.connect() as conn:
-        for row in conn.execute(text("""
-            SELECT position, COUNT(*) AS n
-            FROM adp JOIN players USING (player_id)
-            WHERE season = :season AND source = 'draftsharks'
-            GROUP BY position ORDER BY position
-        """), {"season": SEASON}):
-            print(f"  {row.position}: {row.n} players")
+    veterans = matched[~matched["player_id"].str.startswith("ds-")]
+    display_cols = ["player_name", "position", "team", "adp_overall", "adp_position_rank"]
+
+    print(f"\n{'=' * 70}")
+    print(f"  VETERAN ECR PLAYERS ({len(veterans)} rows) — matched to season_stats")
+    print(f"{'=' * 70}")
+    with pd.option_context("display.max_rows", None, "display.max_columns", None, "display.width", 200):
+        print(veterans[display_cols].sort_values("adp_overall").to_string(index=False))
+
+    print(f"\n{'=' * 70}")
+    print(f"  ROOKIES / UNSIGNED ({len(rookies)} rows) — assigned generated IDs")
+    print(f"{'=' * 70}")
+    with pd.option_context("display.max_rows", None, "display.max_columns", None, "display.width", 200):
+        print(rookies[display_cols].sort_values("adp_overall").to_string(index=False))

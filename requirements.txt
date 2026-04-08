@@ -1,8 +1,10 @@
 # Data ingestion
-# nfl-data-py: install separately with --no-deps (its pandas<2.0 pin is stale)
-#   pip install --no-deps nfl-data-py
+# nfl-data-py has stale pins (pandas<2.0, numpy<2.0) but works fine with modern versions.
+# Install it after the other deps: pip install --no-deps nfl-data-py
 requests==2.32.3
 beautifulsoup4==4.12.3
+appdirs>=1.4
+fastparquet>=2024.0
 
 # Data processing
 pandas>=2.0

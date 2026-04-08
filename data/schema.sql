@@ -7,18 +7,13 @@ DROP TABLE IF EXISTS rankings CASCADE;
 DROP TABLE IF EXISTS adp_history CASCADE;
 DROP TABLE IF EXISTS adp CASCADE;
 DROP TABLE IF EXISTS season_stats CASCADE;
-DROP TABLE IF EXISTS players CASCADE;
-
-CREATE TABLE players (
-    player_id  TEXT PRIMARY KEY,
-    full_name  TEXT NOT NULL,
-    position   TEXT NOT NULL,
-    team       TEXT
-);
 
 CREATE TABLE season_stats (
-    player_id         TEXT NOT NULL REFERENCES players(player_id),
+    player_id         TEXT NOT NULL,
     season            INTEGER NOT NULL,
+    full_name         TEXT NOT NULL,
+    position          TEXT NOT NULL,
+    team              TEXT,
     games_played      INTEGER,
     fantasy_points_ppr NUMERIC,
     completions       INTEGER,
@@ -37,7 +32,7 @@ CREATE TABLE season_stats (
 );
 
 CREATE TABLE adp (
-    player_id          TEXT NOT NULL REFERENCES players(player_id),
+    player_id          TEXT NOT NULL,
     season             INTEGER NOT NULL,
     adp_overall        NUMERIC,
     adp_position_rank  INTEGER,

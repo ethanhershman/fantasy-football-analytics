@@ -10,6 +10,7 @@ by normalized name + position, then upserted into the `adp` table.
 Run: python ingestion/ingest_adp.py
 """
 
+import os
 import time
 import requests
 import pandas as pd
@@ -20,17 +21,43 @@ from db import get_engine
 # Each year represents a draft year (i.e. pre-season consensus ADP).
 SEASONS = [2020, 2021, 2022, 2023, 2024, 2025]
 
-# FFC API endpoint — PPR scoring, 12-team league format.
+# FFC API endpoint — PPR scForing, 12-team league format.
 # {year} is replaced at fetch time with each season.
 FFC_URL = "https://fantasyfootballcalculator.com/api/v1/adp/ppr?teams=12&year={year}"
 
 # Only include fantasy-relevant skill positions (exclude K, DST, etc.).
 POSITIONS = ["QB", "RB", "WR", "TE"]
 
+# Explicit name overrides for cases that can't be solved by normalization alone.
+# Maps FFC name → nflverse name.
+NAME_FIXES = {
+    "Chris Herndon":  "Christopher Herndon",
+    "Joshua Palmer":  "Josh Palmer",
+}
+
 
 def _clean(rows):
     """Convert any NaN/NaT values to None so the DB driver sends SQL NULL."""
     return [{k: (None if pd.isna(v) else v) for k, v in r.items()} for r in rows]
+
+
+def _normalize_name(name: str) -> str:
+    """
+    Normalize a player name for matching by:
+      1. Lowercasing and stripping whitespace.
+      2. Removing suffixes (Jr., Sr., Jr, Sr, II, III, IV).
+      3. Removing dots (so "A.J." becomes "AJ", "D.K." becomes "DK").
+      4. Collapsing extra whitespace left behind.
+    """
+    n = name.lower().strip()
+    # Remove common suffixes — order matters (check longer patterns first).
+    import re
+    n = re.sub(r'\b(jr\.?|sr\.?|iii|ii|iv)\s*$', '', n).strip()
+    # Remove dots and apostrophes (A.J. → AJ, D.K. → DK, Le'Veon → LeVeon).
+    n = n.replace(".", "").replace("'", "")
+    # Collapse any double spaces left behind.
+    n = re.sub(r'\s+', ' ', n).strip()
+    return n
 
 
 def fetch_season(season: int) -> pd.DataFrame:
@@ -43,18 +70,28 @@ def fetch_season(season: int) -> pd.DataFrame:
     resp = requests.get(FFC_URL.format(year=season), timeout=15)
     resp.raise_for_status()
     players = resp.json().get("players", [])
-    if not players:
-        print(f"  {season}: no data.")
-        return pd.DataFrame()
 
-    df = pd.DataFrame(players)
-    df["season"] = season
-
-    # Filter to skill positions only.
-    df = df[df["position"].isin(POSITIONS)].copy()
-
-    # Rename the ADP column and sort so lower ADP = higher draft pick.
-    df = df.sort_values("adp").rename(columns={"adp": "adp_overall", "name": "player_name"})
+    if players:
+        df = pd.DataFrame(players)
+        df["season"] = season
+        # Filter to skill positions only.
+        df = df[df["position"].isin(POSITIONS)].copy()
+        # Rename the ADP column and sort so lower ADP = higher draft pick.
+        df = df.sort_values("adp").rename(columns={"adp": "adp_overall", "name": "player_name"})
+    else:
+        # Fall back to a local CSV if the API has no data for this season.
+        # The CSV is expected at data/ffc_adp_{season}.csv with columns:
+        #   Name, Position, Overall (the ADP pick number).
+        csv_path = os.path.join(os.path.dirname(__file__), "..", "data", f"ffc_adp_{season}.csv")
+        if not os.path.exists(csv_path):
+            print(f"  {season}: no API data and no local CSV found.")
+            return pd.DataFrame()
+        print(f"  {season}: no API data — loading from {csv_path}")
+        df = pd.read_csv(csv_path)
+        df = df.rename(columns={"Name": "player_name", "Position": "position", "Overall": "adp_overall"})
+        df["season"] = season
+        df = df[df["position"].isin(POSITIONS)].copy()
+        df = df.sort_values("adp_overall")
 
     # Compute within-position rank (e.g. RB1, RB2, ...) based on overall ADP.
     df["adp_position_rank"] = df.groupby("position")["adp_overall"].rank(method="first").astype(int)
@@ -66,24 +103,35 @@ def match_ids(df: pd.DataFrame, engine) -> pd.DataFrame:
     """
     Join ADP rows to the players table by normalized name + position.
 
-    Players that can't be matched (retired players not in the roster, name
-    mismatches like "Gabe Davis" vs "Gabriel Davis") are logged and dropped.
+    1. Applies NAME_FIXES for explicit overrides.
+    2. Normalizes both sides (strip suffixes, dots, lowercase) via _normalize_name.
+    3. Logs any remaining unmatched players and drops them.
+
     Returns only rows with a valid player_id.
     """
-    with engine.connect() as conn:
-        players = pd.read_sql("SELECT player_id, full_name, position FROM players", conn)
+    # Apply explicit name fixes, then normalize for matching.
+    df["match_name"] = df["player_name"].replace(NAME_FIXES)
+    df["name_norm"] = df["match_name"].apply(_normalize_name)
 
-    # Normalize names to lowercase/stripped for fuzzy-ish matching.
-    df["name_norm"] = df["player_name"].str.lower().str.strip()
-    players["name_norm"] = players["full_name"].str.lower().str.strip()
+    with engine.connect() as conn:
+        players = pd.read_sql(
+            "SELECT DISTINCT player_id, full_name, position FROM season_stats", conn
+        )
+
+    players["name_norm"] = players["full_name"].apply(_normalize_name)
 
     merged = df.merge(players[["player_id", "name_norm", "position"]], on=["name_norm", "position"], how="left")
 
-    n = merged["player_id"].isna().sum()
-    if n:
-        print(f"    {n} unmatched (retired/name mismatch).")
+    matched = merged.dropna(subset=["player_id"])
+    unmatched = merged[merged["player_id"].isna()]
 
-    return merged.dropna(subset=["player_id"])
+    if not unmatched.empty:
+        season = unmatched["season"].iloc[0]
+        print(f"    {len(unmatched)} unmatched in {season}:")
+        for _, row in unmatched.sort_values("adp_overall").iterrows():
+            print(f"      {row['player_name']:25s} {row['position']:4s}  ADP {row['adp_overall']:.1f}")
+
+    return matched
 
 
 def load_adp(engine):
