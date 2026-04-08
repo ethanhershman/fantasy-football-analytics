@@ -14,7 +14,7 @@ import nfl_data_py as nfl
 from sqlalchemy import text
 from db import get_engine
 
-SEASONS = [2020, 2021, 2022, 2023, 2024, 2025]
+SEASONS = [2019, 2020, 2021, 2022, 2023, 2024, 2025]
 POSITIONS = ["QB", "RB", "WR", "TE"]
 
 # The legacy combined weekly stats file covers up to 2024.
