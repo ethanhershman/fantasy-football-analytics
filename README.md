@@ -1,37 +1,61 @@
 # Fantasy Football Analytics Platform
 
-A two-person data science portfolio project that ranks NFL players for the 2026 season using historical statistics and machine learning, and provides an interactive draft assistant for 12-man PPR leagues.
+A two-person data science portfolio project that builds a machine learning model to predict NFL player performance relative to consensus draft ADP, and packages the output into a website with player rankings and an interactive draft assistant for 12-team PPR leagues.
 
-## What It Does
+## Goals
 
-1. **Player Ranking & Valuation** — An XGBoost model trained on 5 years of NFL data predicts PPR fantasy points per game for each player. Rankings are compared to expert consensus (FantasyPros ECR) to identify over/undervalued players.
+1. **Player valuation model** — Predict player performance relative to consensus ADP. The objective is identifying where the model and the market disagree, so undervalued and overvalued players surface clearly.
+2. **Website** — Expose the model output as player rankings against consensus and include a draft tool that tracks which players have already been picked and recommends a strategy that maximizes expected points for the user's roster.
 
-2. **Draft Assistant** — An interactive snake draft simulator that recommends picks based on value over replacement, positional need, and roster construction.
+## Current Progress
+
+Data ingestion is complete for the initial range of seasons. The three sources below have been joined into per-position mega tables (QB, RB, WR, TE), with one row per player-season containing that season's ADP, eventual fantasy finish, and prior-season stats as features.
+
+| Source | Coverage | Notes |
+| --- | --- | --- |
+| nfl-data-py | 2019–2025 seasonal stats | All skill positions |
+| FantasyFootballCalculator API | 2019–2025 ADP | PPR / 12-team, top ~180 players per season |
+| DraftSharks | 2026 ADP | Top ~260 players |
+
+## Data Sources
+
+- **nfl-data-py** — Open-source Python wrapper around nflverse data. Used for seasonal player statistics.
+- **FantasyFootballCalculator API** — Free REST API providing historical PPR ADP for 12-team leagues.
+- **DraftSharks** — Source for 2026 ADP (deeper coverage than FFC was offering for the upcoming season).
+
+### Future expansion
+
+The mega tables will be extended back to 2015 (11 seasons total), and `nfl-data-py`'s `import_pbp_data()` will be used to pull the same 11 seasons of play-by-play data. This will be aggregated to engineer position-specific features (red-zone usage, air yards, target shares, carry %, route participation, etc.). At ~500,000 rows, the play-by-play dataset is large enough to justify processing with PySpark instead of Pandas.
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Data ingestion | Python, nfl-data-py, requests, BeautifulSoup |
-| File storage | AWS S3 |
-| Database | PostgreSQL (local → AWS RDS) |
-| ETL | PySpark |
-| ML model | XGBoost + Scikit-learn + SHAP |
-| API | FastAPI + Docker |
-| Frontend | Streamlit + Plotly |
+| Layer | Tool | Status |
+| --- | --- | --- |
+| Language | Python 3 | In use |
+| Data ingestion | nfl-data-py, requests | In use |
+| Storage (current) | PostgreSQL (local `ffdb`) | In use |
+| Storage (next) | AWS RDS (managed PostgreSQL) | Planned |
+| File storage (cloud) | AWS S3 | Planned |
+| ETL | PySpark | Planned |
+| Modeling | Scikit-learn (baseline), XGBoost, SHAP | Planned |
+| Visualization | Matplotlib, Seaborn, Plotly | Planned |
+| Backend | FastAPI + Docker | Planned |
+| Frontend | Streamlit (initial), React (possible) | Planned |
+| Hosting | AWS EC2 + RDS | Planned |
+| Version control | Git + GitHub | In use |
 
 ## Project Structure
 
 ```
 ├── data/           # Schema SQL, data dictionary
-├── ingestion/      # Scripts to pull stats, ADP, ECR into PostgreSQL
-├── etl/            # PySpark play-by-play pipeline
-├── models/         # XGBoost training scripts and notebooks
-├── api/            # FastAPI backend + Dockerfile
-├── frontend/       # Streamlit app
+├── ingestion/      # Scripts to pull stats and ADP into PostgreSQL
+├── etl/            # PySpark play-by-play pipeline (planned)
+├── models/         # XGBoost training scripts and notebooks (planned)
+├── api/            # FastAPI backend + Dockerfile (planned)
+├── frontend/       # Streamlit / React app (planned)
 ├── notebooks/      # EDA and model experiment notebooks
 ├── requirements.txt
-└── docker-compose.yml
+└── setup.sh
 ```
 
 ## Setup
@@ -61,16 +85,23 @@ psql -d ffdb -f data/schema.sql
 
 ```bash
 cd ingestion
-python ingest_nfl_stats.py   # seasonal stats + rosters
-python ingest_adp.py         # historical ADP
-python ingest_ecr.py         # expert consensus rankings
+python ingest_nfl_stats.py    # seasonal stats from nfl-data-py
+python ingest_ffc_adp.py      # historical ADP from FantasyFootballCalculator
+python ingest_draftsharks.py  # 2026 ADP from DraftSharks
 ```
 
-## Development Phases
+## Roadmap
 
-- [x] Phase 1 — Data ingestion & local PostgreSQL
-- [ ] Phase 2 — PySpark ETL & AWS S3
-- [ ] Phase 3 — XGBoost model & SHAP analysis
-- [ ] Phase 4 — FastAPI backend & Docker
-- [ ] Phase 5 — Streamlit frontend
-- [ ] Phase 6 — Draft assistant
+- [x] **Phase 1** — Data ingestion + mega tables (2019–2025)
+- [ ] **Phase 2** — Extend mega tables to 2015 + feature engineering from play-by-play
+- [ ] **Phase 3** — Migrate PostgreSQL to AWS RDS
+- [ ] **Phase 4** — EDA + baseline & XGBoost models per position
+- [ ] **Phase 5** — Frontend scaffold (rankings dashboard)
+- [ ] **Phase 6** — FastAPI backend + Docker
+- [ ] **Phase 7** — Draft assistant logic + draft board UI
+- [ ] **Phase 8** — Cloud deploy (RDS + EC2 or equivalent)
+
+## Collaborators
+
+- **Ethan Hershman** (Data Science) — Data engineering, modeling, visualization
+- **Colin** (Computer Science) — Frontend, UI, deployment
