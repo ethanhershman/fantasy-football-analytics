@@ -103,5 +103,5 @@ python ingest_draftsharks.py  # 2026 ADP from DraftSharks
 
 ## Collaborators
 
-- **Ethan Hershman** (Data Science) — Data engineering, modeling, visualization
-- **Colin** (Computer Science) — Frontend, UI, deployment
+- Ethan Hershman
+- Colin Daugherty
