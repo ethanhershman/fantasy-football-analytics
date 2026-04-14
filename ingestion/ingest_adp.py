@@ -7,6 +7,9 @@ from the Fantasy Football Calculator (FFC) public API for each season in the
 SEASONS list. The data is matched to existing player records in the database
 by normalized name + position, then upserted into the `adp` table.
 
+If the FFC API returns no data for a season, the script falls back to a local
+CSV at data/ffc_adp_{season}.csv (columns: Name, Position, Overall).
+
 Run: python ingestion/ingest_adp.py
 """
 
@@ -19,7 +22,8 @@ from db import get_engine
 
 # Historical seasons to pull ADP data for.
 # Each year represents a draft year (i.e. pre-season consensus ADP).
-SEASONS = [2020, 2021, 2022, 2023, 2024, 2025]
+# Covers the full 2016–2025 training window.
+SEASONS = list(range(2016, 2026))
 
 # FFC API endpoint — PPR scForing, 12-team league format.
 # {year} is replaced at fetch time with each season.
@@ -30,9 +34,14 @@ POSITIONS = ["QB", "RB", "WR", "TE"]
 
 # Explicit name overrides for cases that can't be solved by normalization alone.
 # Maps FFC name → nflverse name.
+# Add entries here when the unmatched-player log shows FFC/nflverse name divergence.
 NAME_FIXES = {
-    "Chris Herndon":  "Christopher Herndon",
-    "Joshua Palmer":  "Josh Palmer",
+    # 2020+
+    "Chris Herndon":        "Christopher Herndon",
+    "Joshua Palmer":        "Josh Palmer",
+    # 2016–2019 era
+    "Javorius Allen":       "Buck Allen",
+    "Robert Kelley":        "Rob Kelley",
 }
 
 
@@ -50,9 +59,10 @@ def _normalize_name(name: str) -> str:
       4. Collapsing extra whitespace left behind.
     """
     n = name.lower().strip()
-    # Remove common suffixes — order matters (check longer patterns first).
+    # Remove common suffixes — order matters (longer patterns first to avoid
+    # partial matches, e.g. "iv" before "i").
     import re
-    n = re.sub(r'\b(jr\.?|sr\.?|iii|ii|iv)\s*$', '', n).strip()
+    n = re.sub(r'\b(jr\.?|sr\.?|viii|vii|vi|iii|ii|iv|v)\s*$', '', n).strip()
     # Remove dots and apostrophes (A.J. → AJ, D.K. → DK, Le'Veon → LeVeon).
     n = n.replace(".", "").replace("'", "")
     # Collapse any double spaces left behind.

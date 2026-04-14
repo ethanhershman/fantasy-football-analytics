@@ -2,7 +2,7 @@
 Fetch NFL rosters + seasonal counting stats via nfl_data_py and nflverse.
 Populates: season_stats (one row per player per season, including player info).
 
-For 2020–2024 we use the legacy combined parquet from nflverse (weekly data
+For 2010–2024 we use the legacy combined parquet from nflverse (weekly data
 that we aggregate to season totals). For 2025+ we use the newer per-season
 pre-aggregated parquet files from the nflverse stats_player release.
 
@@ -14,7 +14,9 @@ import nfl_data_py as nfl
 from sqlalchemy import text
 from db import get_engine
 
-SEASONS = [2019, 2020, 2021, 2022, 2023, 2024, 2025]
+# 2010–2025: stats back to 2010 are stored so prior-year features are available
+# for the full 2016–2025 training window (e.g. 2016 rows need 2015 prev_ stats).
+SEASONS = list(range(2010, 2026))
 POSITIONS = ["QB", "RB", "WR", "TE"]
 
 # The legacy combined weekly stats file covers up to 2024.

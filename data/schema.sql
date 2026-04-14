@@ -6,6 +6,7 @@ DROP TABLE IF EXISTS training_data_rb CASCADE;
 DROP TABLE IF EXISTS training_data_wr CASCADE;
 DROP TABLE IF EXISTS training_data_te CASCADE;
 DROP TABLE IF EXISTS adp CASCADE;
+DROP TABLE IF EXISTS pbp_features CASCADE;
 DROP TABLE IF EXISTS season_stats CASCADE;
 
 CREATE TABLE season_stats (
@@ -28,6 +29,32 @@ CREATE TABLE season_stats (
     targets           INTEGER,
     receiving_yards   INTEGER,
     receiving_tds     INTEGER,
+    PRIMARY KEY (player_id, season)
+);
+
+CREATE TABLE pbp_features (
+    player_id               TEXT    NOT NULL,
+    season                  INTEGER NOT NULL,
+    -- Passing (QB)
+    cpoe                    NUMERIC,
+    air_yards_per_attempt   NUMERIC,
+    rz_pass_attempts        INTEGER,
+    -- Receiving (WR / TE / RB)
+    targets                 INTEGER,
+    rz_targets              INTEGER,
+    adot                    NUMERIC,
+    catch_rate              NUMERIC,
+    yac_per_reception       NUMERIC,
+    target_share            NUMERIC,
+    air_yards_share         NUMERIC,
+    rz_target_share         NUMERIC,
+    -- Rushing (RB / QB scrambles)
+    carries                 INTEGER,
+    rz_carries              INTEGER,
+    goalline_carries        INTEGER,
+    rz_carry_share          NUMERIC,
+    -- Combined
+    opportunity_share       NUMERIC,
     PRIMARY KEY (player_id, season)
 );
 
