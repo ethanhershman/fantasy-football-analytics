@@ -25,7 +25,7 @@ Data ingestion is complete for the initial range of seasons. The three sources b
 
 ### Future expansion
 
-The mega tables will be extended back to 2015 (11 seasons total), and `nfl-data-py`'s `import_pbp_data()` will be used to pull the same 11 seasons of play-by-play data. This will be aggregated to engineer position-specific features (red-zone usage, air yards, target shares, carry %, route participation, etc.). At ~500,000 rows, the play-by-play dataset is large enough to justify processing with PySpark instead of Pandas.
+The mega tables will be extended back to 2015 (11 seasons total), and `nfl-data-py`'s `import_pbp_data()` will be used to pull the same 11 seasons of play-by-play data. This will be aggregated to engineer position-specific features (red-zone usage, air yards, target shares, carry %, route participation, etc.). At ~500,000 rows the dataset fits comfortably in pandas after column-filtered loads via `nfl.import_pbp_data(years, columns=[...])`.
 
 ## Tech Stack
 
@@ -36,7 +36,7 @@ The mega tables will be extended back to 2015 (11 seasons total), and `nfl-data-
 | Storage (current) | PostgreSQL (local `ffdb`) | In use |
 | Storage (next) | AWS RDS (managed PostgreSQL) | Planned |
 | File storage (cloud) | AWS S3 | Planned |
-| ETL | PySpark | Planned |
+| ETL | pandas (+ DuckDB if needed) | Planned |
 | Modeling | Scikit-learn (baseline), XGBoost, SHAP | Planned |
 | Visualization | Matplotlib, Seaborn, Plotly | Planned |
 | Backend | FastAPI + Docker | Planned |
@@ -49,7 +49,7 @@ The mega tables will be extended back to 2015 (11 seasons total), and `nfl-data-
 ```
 ├── data/           # Schema SQL, data dictionary
 ├── ingestion/      # Scripts to pull stats and ADP into PostgreSQL
-├── etl/            # PySpark play-by-play pipeline (planned)
+├── features/       # Play-by-play and seasonal feature engineering (pandas)
 ├── models/         # XGBoost training scripts and notebooks (planned)
 ├── api/            # FastAPI backend + Dockerfile (planned)
 ├── frontend/       # Streamlit / React app (planned)
@@ -93,13 +93,15 @@ python ingest_draftsharks.py  # 2026 ADP from DraftSharks
 ## Roadmap
 
 - [x] **Phase 1** — Data ingestion + mega tables (2019–2025)
-- [ ] **Phase 2** — Extend mega tables to 2015 + feature engineering from play-by-play
-- [ ] **Phase 3** — Migrate PostgreSQL to AWS RDS
-- [ ] **Phase 4** — EDA + baseline & XGBoost models per position
-- [ ] **Phase 5** — Frontend scaffold (rankings dashboard)
-- [ ] **Phase 6** — FastAPI backend + Docker
-- [ ] **Phase 7** — Draft assistant logic + draft board UI
-- [ ] **Phase 8** — Cloud deploy (RDS + EC2 or equivalent)
+- [ ] **Phase 2** — EDA on existing 2019–2025 mega tables (correlations, ADP-vs-finish, feature prioritization)
+- [ ] **Phase 3** — Bucket A feature pulls (seasonal, NGS, snap counts)
+- [ ] **Phase 4** — Extend mega tables to 2015 + Bucket B pbp features
+- [ ] **Phase 5** — Migrate PostgreSQL to AWS RDS
+- [ ] **Phase 6** — Baseline (Ridge) + XGBoost models per position + SHAP
+- [ ] **Phase 7** — FastAPI backend + Docker
+- [ ] **Phase 8** — Streamlit frontend (rankings dashboard)
+- [ ] **Phase 9** — Draft assistant logic + draft board UI
+- [ ] **Phase 10** — Cloud deploy (RDS + EC2 or equivalent)
 
 ## Collaborators
 

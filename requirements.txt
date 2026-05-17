@@ -10,7 +10,6 @@ fastparquet>=2024.0
 pandas>=2.0
 numpy>=1.26
 pyarrow==18.1.0
-pyspark==3.5.4
 
 # Database
 psycopg2-binary==2.9.10

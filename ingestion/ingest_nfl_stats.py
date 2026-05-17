@@ -14,9 +14,9 @@ import nfl_data_py as nfl
 from sqlalchemy import text
 from db import get_engine
 
-# 2010–2025: stats back to 2010 are stored so prior-year features are available
+# 2015–2025: stats back to 2015 are stored so prior-year features are available
 # for the full 2016–2025 training window (e.g. 2016 rows need 2015 prev_ stats).
-SEASONS = list(range(2010, 2026))
+SEASONS = list(range(2015, 2026))
 POSITIONS = ["QB", "RB", "WR", "TE"]
 
 # The legacy combined weekly stats file covers up to 2024.

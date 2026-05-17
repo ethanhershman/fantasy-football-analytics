@@ -22,7 +22,8 @@ from db import get_engine
 
 # Historical seasons to pull ADP data for.
 # Each year represents a draft year (i.e. pre-season consensus ADP).
-# Covers the full 2016–2025 training window.
+# Intentionally starts at 2016, not 2015: FFC's historical API has sparse and
+# unreliable coverage for seasons earlier than 2016.
 SEASONS = list(range(2016, 2026))
 
 # FFC API endpoint — PPR scForing, 12-team league format.
