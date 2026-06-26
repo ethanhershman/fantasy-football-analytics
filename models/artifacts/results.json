@@ -3,7 +3,7 @@
     "pos": "QB",
     "n_train": 297,
     "n_test": 88,
-    "n_features": 22,
+    "n_resid_features": 20,
     "k": 8,
     "adp": {
       "mae": 3.679,
@@ -13,37 +13,37 @@
       "mae_at_8": 3.529
     },
     "ridge": {
-      "mae": 3.653,
-      "r": 0.613,
-      "precision_at_8": 0.438,
+      "mae": 3.737,
+      "r": 0.619,
+      "precision_at_8": 0.5,
       "spearman_at_8": 0.083,
-      "mae_at_8": 3.654
+      "mae_at_8": 3.284
     },
     "xgb": {
-      "mae": 3.561,
-      "r": 0.682,
-      "precision_at_8": 0.438,
-      "spearman_at_8": 0.202,
-      "mae_at_8": 3.465
+      "mae": 3.853,
+      "r": 0.625,
+      "precision_at_8": 0.562,
+      "spearman_at_8": 0.167,
+      "mae_at_8": 3.134
     },
     "top_features": {
-      "adp_position_rank": 0.18460646271705627,
-      "adp_overall": 0.06968807429075241,
-      "prev_completions": 0.058466337621212006,
-      "prev_passing_yards": 0.04731013998389244,
-      "prev_completion_percentage_above_expectation": 0.044749967753887177,
-      "prev_scrambles": 0.043641868978738785,
-      "prev_avg_time_to_throw": 0.0433788038790226,
-      "prev_pass_attempts": 0.041843947023153305,
-      "prev_snap_pct": 0.041579436510801315,
-      "prev_avg_intended_air_yards": 0.04108201712369919
+      "prev_scrambles": 0.08037371933460236,
+      "prev_passing_yards": 0.07459013909101486,
+      "prev_snap_pct": 0.07054408639669418,
+      "prev_completion_percentage_above_expectation": 0.06626606732606888,
+      "prev_pass_attempts": 0.05864553898572922,
+      "prev_avg_intended_air_yards": 0.05666954442858696,
+      "prev_passing_tds": 0.05506320670247078,
+      "prev_aggressiveness": 0.053165119141340256,
+      "prev_completions": 0.05303351953625679,
+      "prev_offense_snaps": 0.04919522628188133
     }
   },
   "RB": {
     "pos": "RB",
     "n_train": 730,
     "n_test": 164,
-    "n_features": 29,
+    "n_resid_features": 27,
     "k": 12,
     "adp": {
       "mae": 3.323,
@@ -53,37 +53,37 @@
       "mae_at_12": 3.578
     },
     "ridge": {
-      "mae": 3.467,
-      "r": 0.694,
+      "mae": 3.479,
+      "r": 0.699,
       "precision_at_12": 0.542,
-      "spearman_at_12": 0.273,
-      "mae_at_12": 4.366
+      "spearman_at_12": 0.413,
+      "mae_at_12": 3.877
     },
     "xgb": {
-      "mae": 3.365,
-      "r": 0.701,
-      "precision_at_12": 0.625,
-      "spearman_at_12": 0.189,
-      "mae_at_12": 4.415
+      "mae": 3.355,
+      "r": 0.711,
+      "precision_at_12": 0.583,
+      "spearman_at_12": 0.521,
+      "mae_at_12": 3.799
     },
     "top_features": {
-      "adp_position_rank": 0.18427984416484833,
-      "adp_overall": 0.15487660467624664,
-      "prev_fantasy_points_ppr": 0.05315010994672775,
-      "prev_receiving_yards": 0.03408218175172806,
-      "prev_target_share": 0.03343196585774422,
-      "prev_goalline_carries": 0.032065946608781815,
-      "prev_percent_attempts_gte_eight_defenders": 0.031723443418741226,
-      "prev_rz_targets": 0.03148769959807396,
-      "prev_air_yards": 0.03011425957083702,
-      "prev_yards_after_catch": 0.02835049480199814
+      "prev_yards_after_catch": 0.06374859064817429,
+      "prev_target_share": 0.06136719509959221,
+      "prev_goalline_carries": 0.058051109313964844,
+      "prev_air_yards_share": 0.04615607485175133,
+      "prev_rz_targets": 0.045502979308366776,
+      "prev_receptions": 0.04523526877164841,
+      "prev_rz_carries": 0.04486720263957977,
+      "prev_adot": 0.044329479336738586,
+      "prev_fantasy_points_ppr": 0.044191401451826096,
+      "prev_games_played": 0.042214829474687576
     }
   },
   "WR": {
     "pos": "WR",
     "n_train": 819,
     "n_test": 201,
-    "n_features": 23,
+    "n_resid_features": 21,
     "k": 12,
     "adp": {
       "mae": 3.178,
@@ -93,37 +93,37 @@
       "mae_at_12": 3.888
     },
     "ridge": {
-      "mae": 2.977,
-      "r": 0.752,
+      "mae": 2.992,
+      "r": 0.744,
       "precision_at_12": 0.5,
-      "spearman_at_12": 0.063,
-      "mae_at_12": 3.585
+      "spearman_at_12": 0.073,
+      "mae_at_12": 3.421
     },
     "xgb": {
-      "mae": 3.195,
-      "r": 0.697,
+      "mae": 3.263,
+      "r": 0.687,
       "precision_at_12": 0.417,
-      "spearman_at_12": -0.07,
-      "mae_at_12": 4.199
+      "spearman_at_12": 0.049,
+      "mae_at_12": 3.995
     },
     "top_features": {
-      "adp_position_rank": 0.3196200132369995,
-      "adp_overall": 0.07718551903963089,
-      "prev_target_share": 0.05022590979933739,
-      "prev_ppg": 0.04874156042933464,
-      "prev_air_yards": 0.04009255766868591,
-      "prev_avg_intended_air_yards_receiving": 0.035050492733716965,
-      "prev_yards_after_catch": 0.03316286578774452,
-      "prev_team_pass_rate": 0.03204106166958809,
-      "prev_fantasy_points_ppr": 0.03184286877512932,
-      "prev_air_yards_share": 0.030903911218047142
+      "prev_target_share": 0.0816231295466423,
+      "prev_avg_intended_air_yards_receiving": 0.06807176768779755,
+      "prev_air_yards": 0.06336025148630142,
+      "prev_air_yards_share": 0.05800173059105873,
+      "prev_team_pass_rate": 0.05536121502518654,
+      "prev_receiving_yards": 0.05363834276795387,
+      "prev_snap_pct": 0.0520932674407959,
+      "prev_avg_separation": 0.051744312047958374,
+      "prev_rz_targets": 0.05028160288929939,
+      "prev_offense_snaps": 0.048376329243183136
     }
   },
   "TE": {
     "pos": "TE",
     "n_train": 280,
     "n_test": 69,
-    "n_features": 23,
+    "n_resid_features": 21,
     "k": 8,
     "adp": {
       "mae": 2.591,
@@ -133,30 +133,30 @@
       "mae_at_8": 3.275
     },
     "ridge": {
-      "mae": 2.428,
-      "r": 0.662,
+      "mae": 2.483,
+      "r": 0.649,
       "precision_at_8": 0.625,
-      "spearman_at_8": 0.333,
-      "mae_at_8": 2.549
+      "spearman_at_8": 0.286,
+      "mae_at_8": 2.59
     },
     "xgb": {
-      "mae": 2.362,
-      "r": 0.671,
+      "mae": 2.406,
+      "r": 0.656,
       "precision_at_8": 0.625,
-      "spearman_at_8": 0.048,
-      "mae_at_8": 3.222
+      "spearman_at_8": 0.476,
+      "mae_at_8": 2.891
     },
     "top_features": {
-      "adp_position_rank": 0.15629394352436066,
-      "adp_overall": 0.09790638834238052,
-      "prev_receiving_yards": 0.06762884557247162,
-      "prev_yards_after_catch": 0.06586151570081711,
-      "prev_fantasy_points_ppr": 0.05386756360530853,
-      "prev_avg_separation": 0.047780074179172516,
-      "prev_team_pass_rate": 0.04639957845211029,
-      "prev_air_yards": 0.0442148856818676,
-      "prev_adot": 0.041858699172735214,
-      "prev_avg_intended_air_yards_receiving": 0.04146680608391762
+      "prev_avg_separation": 0.07934027910232544,
+      "prev_yards_after_catch": 0.07020197808742523,
+      "prev_avg_intended_air_yards_receiving": 0.06851529330015182,
+      "prev_adot": 0.06538175046443939,
+      "prev_avg_cushion": 0.06416358053684235,
+      "prev_team_pass_rate": 0.05697688087821007,
+      "prev_air_yards": 0.05420271307229996,
+      "prev_target_share": 0.048522211611270905,
+      "prev_air_yards_share": 0.04838309809565544,
+      "prev_rz_targets": 0.04739324748516083
     }
   }
 }

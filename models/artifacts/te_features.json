@@ -1,25 +1,29 @@
-[
-  "adp_overall",
-  "adp_position_rank",
-  "career_season",
-  "prev_ppg",
-  "prev_games_played",
-  "prev_fantasy_points_ppr",
-  "prev_receptions",
-  "prev_receiving_yards",
-  "prev_receiving_tds",
-  "prev_target_share",
-  "prev_air_yards_share",
-  "prev_wopr",
-  "prev_racr",
-  "prev_adot",
-  "prev_air_yards",
-  "prev_yards_after_catch",
-  "prev_avg_separation",
-  "prev_avg_cushion",
-  "prev_avg_intended_air_yards_receiving",
-  "prev_snap_pct",
-  "prev_offense_snaps",
-  "prev_rz_targets",
-  "prev_team_pass_rate"
-]
+{
+  "adp": [
+    "adp_overall",
+    "adp_position_rank"
+  ],
+  "residual": [
+    "career_season",
+    "prev_ppg",
+    "prev_games_played",
+    "prev_fantasy_points_ppr",
+    "prev_receptions",
+    "prev_receiving_yards",
+    "prev_receiving_tds",
+    "prev_target_share",
+    "prev_air_yards_share",
+    "prev_wopr",
+    "prev_racr",
+    "prev_adot",
+    "prev_air_yards",
+    "prev_yards_after_catch",
+    "prev_avg_separation",
+    "prev_avg_cushion",
+    "prev_avg_intended_air_yards_receiving",
+    "prev_snap_pct",
+    "prev_offense_snaps",
+    "prev_rz_targets",
+    "prev_team_pass_rate"
+  ]
+}
