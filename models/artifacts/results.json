@@ -4,17 +4,27 @@
     "n_train": 297,
     "n_test": 88,
     "n_features": 22,
+    "k": 8,
     "adp": {
       "mae": 3.679,
-      "r": 0.637
+      "r": 0.637,
+      "precision_at_8": 0.5,
+      "spearman_at_8": 0.298,
+      "mae_at_8": 3.529
     },
     "ridge": {
       "mae": 3.653,
-      "r": 0.613
+      "r": 0.613,
+      "precision_at_8": 0.438,
+      "spearman_at_8": 0.083,
+      "mae_at_8": 3.654
     },
     "xgb": {
       "mae": 3.561,
-      "r": 0.682
+      "r": 0.682,
+      "precision_at_8": 0.438,
+      "spearman_at_8": 0.202,
+      "mae_at_8": 3.465
     },
     "top_features": {
       "adp_position_rank": 0.18460646271705627,
@@ -34,17 +44,27 @@
     "n_train": 730,
     "n_test": 164,
     "n_features": 29,
+    "k": 12,
     "adp": {
       "mae": 3.323,
-      "r": 0.746
+      "r": 0.746,
+      "precision_at_12": 0.708,
+      "spearman_at_12": 0.692,
+      "mae_at_12": 3.578
     },
     "ridge": {
       "mae": 3.467,
-      "r": 0.694
+      "r": 0.694,
+      "precision_at_12": 0.542,
+      "spearman_at_12": 0.273,
+      "mae_at_12": 4.366
     },
     "xgb": {
       "mae": 3.365,
-      "r": 0.701
+      "r": 0.701,
+      "precision_at_12": 0.625,
+      "spearman_at_12": 0.189,
+      "mae_at_12": 4.415
     },
     "top_features": {
       "adp_position_rank": 0.18427984416484833,
@@ -64,17 +84,27 @@
     "n_train": 819,
     "n_test": 201,
     "n_features": 23,
+    "k": 12,
     "adp": {
       "mae": 3.178,
-      "r": 0.711
+      "r": 0.711,
+      "precision_at_12": 0.542,
+      "spearman_at_12": -0.059,
+      "mae_at_12": 3.888
     },
     "ridge": {
       "mae": 2.977,
-      "r": 0.752
+      "r": 0.752,
+      "precision_at_12": 0.5,
+      "spearman_at_12": 0.063,
+      "mae_at_12": 3.585
     },
     "xgb": {
       "mae": 3.195,
-      "r": 0.697
+      "r": 0.697,
+      "precision_at_12": 0.417,
+      "spearman_at_12": -0.07,
+      "mae_at_12": 4.199
     },
     "top_features": {
       "adp_position_rank": 0.3196200132369995,
@@ -94,17 +124,27 @@
     "n_train": 280,
     "n_test": 69,
     "n_features": 23,
+    "k": 8,
     "adp": {
       "mae": 2.591,
-      "r": 0.605
+      "r": 0.605,
+      "precision_at_8": 0.562,
+      "spearman_at_8": 0.155,
+      "mae_at_8": 3.275
     },
     "ridge": {
       "mae": 2.428,
-      "r": 0.662
+      "r": 0.662,
+      "precision_at_8": 0.625,
+      "spearman_at_8": 0.333,
+      "mae_at_8": 2.549
     },
     "xgb": {
       "mae": 2.362,
-      "r": 0.671
+      "r": 0.671,
+      "precision_at_8": 0.625,
+      "spearman_at_8": 0.048,
+      "mae_at_8": 3.222
     },
     "top_features": {
       "adp_position_rank": 0.15629394352436066,
