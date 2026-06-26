@@ -161,7 +161,11 @@ def build_position_table(pos: str, df: pd.DataFrame) -> pd.DataFrame:
     prev_stat_cols    = [f"prev_{c}" for c in stat_cols]
     prev_feature_cols = [f"prev_{c}" for c in feature_cols]
 
-    base_cols = ["full_name", "season", "team", "adp_overall", "adp_position_rank", "finish"]
+    base_cols = [
+        "full_name", "season", "career_season", "team",
+        "adp_overall", "adp_position_rank", "finish",
+        "ppg", "prev_ppg", "ppg_delta", "pts_delta",
+    ]
     all_cols  = base_cols + stat_cols + feature_cols + prev_stat_cols + prev_feature_cols
 
     # Keep only columns that actually exist (features may not all be loaded yet).
@@ -186,6 +190,18 @@ def main():
         .astype("Int64")
     )
 
+    # Career season number (1 = first season this player appears in the dataset).
+    stats["career_season"] = (
+        stats.groupby("player_id")["season"]
+        .rank(method="first")
+        .astype(int)
+    )
+
+    # PPG — shifted forward so prev_ppg lands as a predictor on the next row.
+    stats["ppg"] = (
+        stats["fantasy_points_ppr"] / stats["games_played"]
+    ).where(stats["games_played"] > 0)
+
     # Average ADP across sources per player-season (only 'ffc' for now).
     adp_agg = (
         adp.groupby(["player_id", "season"])
@@ -198,7 +214,7 @@ def main():
     # *next* season's rows.
     # ------------------------------------------------------------------
     all_stat_cols = [
-        "fantasy_points_ppr", "games_played",
+        "ppg", "fantasy_points_ppr", "games_played",
         "completions", "pass_attempts", "passing_yards", "passing_tds", "interceptions",
         "carries", "rushing_yards", "rushing_tds",
         "receptions", "targets", "receiving_yards", "receiving_tds",
@@ -235,6 +251,14 @@ def main():
         df = df.merge(features[feat_new_cols], on=["player_id", "season"], how="left")
         # Prior-season features (used as model predictors).
         df = df.merge(prev_features, on=["player_id", "season"], how="left")
+
+    # Fill undrafted players with end-of-draft proxy values so ADP is never null.
+    df["adp_overall"]       = df["adp_overall"].fillna(300.0)
+    df["adp_position_rank"] = df["adp_position_rank"].fillna(75.0)
+
+    # Delta features: how much did this player improve/decline vs last season?
+    df["ppg_delta"] = df["ppg"] - df["prev_ppg"]
+    df["pts_delta"] = df["fantasy_points_ppr"] - df["prev_fantasy_points_ppr"]
 
     # Drop pre-2016 seasons — they exist only to supply prev_* stats for 2016 rows.
     df = df[df["season"] >= 2016]
