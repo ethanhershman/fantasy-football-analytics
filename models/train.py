@@ -9,7 +9,7 @@ Features (known at draft time):
 
 Target: ppg (fantasy points per game, current season)
 
-Split: train 2016-2022, test 2023-2024 (time-based, no leakage)
+Split: train 2016-2023, test 2024-2025 (time-based, no leakage)
 
 Models per position:
   Ridge   — interpretable baseline
@@ -40,10 +40,11 @@ from xgboost import XGBRegressor
 DATA_DIR      = Path(__file__).parent.parent / "data"
 ARTIFACTS_DIR = Path(__file__).parent / "artifacts"
 
-TRAIN_SEASONS = list(range(2016, 2023))
-TEST_SEASONS  = [2023, 2024]
+TRAIN_SEASONS = list(range(2016, 2024))
+TEST_SEASONS  = [2024, 2025]
 
 CONTEXT_COLS = ["adp_overall", "adp_position_rank", "career_season"]
+ADP_COLS     = ["adp_overall", "adp_position_rank"]
 
 
 def load_position(pos: str) -> pd.DataFrame:
@@ -70,7 +71,7 @@ def split(df: pd.DataFrame, features: list[str]):
 def eval_metrics(y_true, y_pred, label: str):
     mae  = mean_absolute_error(y_true, y_pred)
     corr = np.corrcoef(y_true, y_pred)[0, 1]
-    print(f"    {label:8s}  MAE={mae:.2f}  r={corr:.3f}")
+    print(f"    {label:<14s}  MAE={mae:.2f}  r={corr:.3f}")
     return {"mae": round(mae, 3), "r": round(float(corr), 3)}
 
 
@@ -85,7 +86,18 @@ def train_position(pos: str) -> dict:
 
     print(f"  Train: {len(X_train)} rows | Test: {len(X_test)} rows | Features: {len(features)}")
 
-    # --- Ridge baseline ---
+    # --- ADP-only baseline (how well does just drafting by ADP do?) ---
+    adp_pipe = Pipeline([
+        ("imputer", SimpleImputer(strategy="median").set_output(transform="pandas")),
+        ("scaler",  StandardScaler().set_output(transform="pandas")),
+        ("model",   Ridge(alpha=1.0)),
+    ])
+    adp_pipe.fit(X_train[ADP_COLS], y_train)
+    adp_pred = adp_pipe.predict(X_test[ADP_COLS])
+    print("  Test metrics:")
+    adp_metrics = eval_metrics(y_test, adp_pred, "ADP only")
+
+    # --- Ridge (full features) ---
     ridge_pipe = Pipeline([
         ("imputer", SimpleImputer(strategy="median").set_output(transform="pandas")),
         ("scaler",  StandardScaler().set_output(transform="pandas")),
@@ -93,8 +105,7 @@ def train_position(pos: str) -> dict:
     ])
     ridge_pipe.fit(X_train, y_train)
     ridge_pred = ridge_pipe.predict(X_test)
-    print("  Test metrics:")
-    ridge_metrics = eval_metrics(y_test, ridge_pred, "Ridge")
+    ridge_metrics = eval_metrics(y_test, ridge_pred, "Ridge (full)")
 
     # --- XGBoost ---
     xgb_pipe = Pipeline([
@@ -138,9 +149,10 @@ def train_position(pos: str) -> dict:
         "n_train": len(X_train),
         "n_test":  len(X_test),
         "n_features": len(features),
+        "adp":   adp_metrics,
         "ridge": ridge_metrics,
         "xgb":   xgb_metrics,
-        "top_shap": top_features.to_dict(),
+        "top_features": top_features.to_dict(),
     }
 
 
@@ -152,10 +164,11 @@ def main():
     print(f"\n{'='*56}")
     print("  Summary")
     print(f"{'='*56}")
-    print(f"  {'Pos':<4}  {'Ridge MAE':>10}  {'Ridge r':>8}  {'XGB MAE':>10}  {'XGB r':>8}")
+    print(f"  {'Pos':<4}  {'ADP MAE':>8}  {'ADP r':>6}  {'Ridge MAE':>10}  {'Ridge r':>8}  {'XGB MAE':>8}  {'XGB r':>6}")
     for pos, r in results.items():
-        print(f"  {pos:<4}  {r['ridge']['mae']:>10.2f}  {r['ridge']['r']:>8.3f}"
-              f"  {r['xgb']['mae']:>10.2f}  {r['xgb']['r']:>8.3f}")
+        print(f"  {pos:<4}  {r['adp']['mae']:>8.2f}  {r['adp']['r']:>6.3f}"
+              f"  {r['ridge']['mae']:>10.2f}  {r['ridge']['r']:>8.3f}"
+              f"  {r['xgb']['mae']:>8.2f}  {r['xgb']['r']:>6.3f}")
 
     with open(ARTIFACTS_DIR / "results.json", "w") as f:
         json.dump(results, f, indent=2)
