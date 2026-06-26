@@ -1,0 +1,106 @@
+{
+  "QB": {
+    "pos": "QB",
+    "n_train": 255,
+    "n_test": 86,
+    "n_features": 22,
+    "ridge": {
+      "mae": 3.774,
+      "r": 0.502
+    },
+    "xgb": {
+      "mae": 4.125,
+      "r": 0.451
+    },
+    "top_shap": {
+      "adp_position_rank": 0.19518283009529114,
+      "prev_passing_yards": 0.08039949089288712,
+      "adp_overall": 0.05900435894727707,
+      "prev_snap_pct": 0.05493580177426338,
+      "prev_scrambles": 0.05153374373912811,
+      "prev_aggressiveness": 0.04541492089629173,
+      "prev_avg_time_to_throw": 0.04383799806237221,
+      "prev_fantasy_points_ppr": 0.04253065958619118,
+      "prev_games_played": 0.04050571471452713,
+      "prev_completion_percentage_above_expectation": 0.039987266063690186
+    }
+  },
+  "RB": {
+    "pos": "RB",
+    "n_train": 642,
+    "n_test": 170,
+    "n_features": 29,
+    "ridge": {
+      "mae": 3.549,
+      "r": 0.602
+    },
+    "xgb": {
+      "mae": 3.433,
+      "r": 0.635
+    },
+    "top_shap": {
+      "adp_overall": 0.21509677171707153,
+      "adp_position_rank": 0.08777156472206116,
+      "prev_fantasy_points_ppr": 0.05633467808365822,
+      "prev_yards_after_catch": 0.042235229164361954,
+      "prev_goalline_carries": 0.03846277296543121,
+      "prev_receiving_yards": 0.03418678790330887,
+      "prev_receptions": 0.031548112630844116,
+      "prev_target_share": 0.03147132694721222,
+      "prev_air_yards": 0.029864704236388206,
+      "prev_adot": 0.0293105635792017
+    }
+  },
+  "WR": {
+    "pos": "WR",
+    "n_train": 711,
+    "n_test": 215,
+    "n_features": 23,
+    "ridge": {
+      "mae": 3.005,
+      "r": 0.757
+    },
+    "xgb": {
+      "mae": 3.117,
+      "r": 0.72
+    },
+    "top_shap": {
+      "adp_position_rank": 0.16869379580020905,
+      "adp_overall": 0.1628798544406891,
+      "prev_ppg": 0.050934240221977234,
+      "prev_target_share": 0.04759851098060608,
+      "prev_air_yards": 0.04650161415338516,
+      "prev_yards_after_catch": 0.03921567648649216,
+      "prev_air_yards_share": 0.03792477026581764,
+      "prev_avg_intended_air_yards_receiving": 0.03739906847476959,
+      "prev_team_pass_rate": 0.03721626102924347,
+      "prev_fantasy_points_ppr": 0.03498412296175957
+    }
+  },
+  "TE": {
+    "pos": "TE",
+    "n_train": 243,
+    "n_test": 71,
+    "n_features": 23,
+    "ridge": {
+      "mae": 2.569,
+      "r": 0.561
+    },
+    "xgb": {
+      "mae": 2.463,
+      "r": 0.574
+    },
+    "top_shap": {
+      "adp_position_rank": 0.18417148292064667,
+      "adp_overall": 0.09786007553339005,
+      "prev_receiving_yards": 0.07598777115345001,
+      "prev_yards_after_catch": 0.05723029747605324,
+      "prev_air_yards": 0.04903446137905121,
+      "prev_team_pass_rate": 0.04597672075033188,
+      "prev_target_share": 0.04577435180544853,
+      "prev_rz_targets": 0.042076580226421356,
+      "prev_avg_cushion": 0.04061274975538254,
+      "prev_ppg": 0.03594048321247101
+    }
+  }
+}
