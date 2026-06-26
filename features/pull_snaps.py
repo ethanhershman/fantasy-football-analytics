@@ -29,7 +29,12 @@ def _build_pfr_crosswalk(years: list[int]) -> pd.DataFrame:
     rosters = rosters[["player_id", "pfr_id", "position"]].dropna(subset=["player_id", "pfr_id"])
     rosters = rosters[rosters["position"].isin(POSITIONS)]
     # A PFR ID can appear on multiple seasons; keep one mapping per pfr_id.
-    return rosters[["pfr_id", "player_id"]].drop_duplicates(subset=["pfr_id"])
+    # Rename to match the pfr_player_id column used in import_snap_counts.
+    return (
+        rosters[["pfr_id", "player_id"]]
+        .drop_duplicates(subset=["pfr_id"])
+        .rename(columns={"pfr_id": "pfr_player_id"})
+    )
 
 
 def build_snap_features(years: list[int]) -> pd.DataFrame:

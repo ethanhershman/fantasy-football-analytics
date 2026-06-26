@@ -22,11 +22,12 @@ from pathlib import Path
 import pandas as pd
 import nfl_data_py as nfl
 
-YEARS = list(range(2016, 2026))
+YEARS = list(range(2016, 2025))
 OUT_PATH = Path(__file__).parent.parent / "data" / "features" / "pbp.parquet"
 
 # Minimal column allowlist — keeps the import fast and memory-efficient.
 PBP_COLS = [
+    "game_id",
     "season",
     "season_type",
     "play_type",
@@ -39,7 +40,6 @@ PBP_COLS = [
     "receiver_player_id",
     "sack",
     "pass_attempt",
-    "was_pressure",   # available ~2018+; absent rows handled with fillna
 ]
 
 
@@ -87,7 +87,7 @@ def build_pbp_features(years: list[int]) -> pd.DataFrame:
     pbp = raw[raw["season_type"] == "REG"].copy()
 
     # Coerce flag columns to numeric, filling NaN as 0.
-    for col in ("rush_attempt", "qb_scramble", "pass_attempt", "sack", "was_pressure"):
+    for col in ("rush_attempt", "qb_scramble", "pass_attempt", "sack"):
         if col in pbp.columns:
             pbp[col] = pd.to_numeric(pbp[col], errors="coerce").fillna(0)
     print(f"  {len(pbp):,} regular-season plays across {pbp['season'].nunique()} seasons.")
@@ -145,29 +145,9 @@ def build_pbp_features(years: list[int]) -> pd.DataFrame:
     rusher = rusher.drop(columns=["posteam", "team_rush_attempts"])
 
     # -----------------------------------------------------------------------
-    # Pressure-to-sack rate — keyed on passer_player_id
-    # was_pressure is only available ~2018+; NaN where absent.
-    # -----------------------------------------------------------------------
-    pressure_cols = {}
-    if "was_pressure" in pbp.columns:
-        qb_plays = pbp[pbp["passer_player_id"].notna()]
-        pressure_agg = (
-            qb_plays.groupby(["passer_player_id", "season"])
-            .agg(total_pressures=("was_pressure", "sum"), total_sacks=("sack", "sum"))
-            .reset_index()
-            .rename(columns={"passer_player_id": "player_id"})
-        )
-        pressure_agg["pressure_to_sack_rate"] = (
-            pressure_agg["total_sacks"] / pressure_agg["total_pressures"]
-        ).where(pressure_agg["total_pressures"] > 0)
-        pressure_cols = pressure_agg[["player_id", "season", "pressure_to_sack_rate"]]
-
-    # -----------------------------------------------------------------------
     # Outer-join all frames so every player with any pbp appearance gets a row.
     # -----------------------------------------------------------------------
     result = receiver.merge(rusher, on=["player_id", "season"], how="outer")
-    if isinstance(pressure_cols, pd.DataFrame):
-        result = result.merge(pressure_cols, on=["player_id", "season"], how="left")
 
     return result.dropna(subset=["player_id"]).reset_index(drop=True)
 

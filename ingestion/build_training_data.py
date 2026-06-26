@@ -57,7 +57,6 @@ POSITION_FEATURE_COLS = {
         "designed_rushes",
         "scrambles",
         "team_pass_rate",
-        "pressure_to_sack_rate",
     ],
     "RB": [
         # seasonal
