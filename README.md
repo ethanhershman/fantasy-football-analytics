@@ -9,12 +9,12 @@ A two-person data science portfolio project that builds a machine learning model
 
 ## Current Progress
 
-Data ingestion is complete for the initial range of seasons. The three sources below have been joined into per-position mega tables (QB, RB, WR, TE), with one row per player-season containing that season's ADP, eventual fantasy finish, and prior-season stats as features.
+Data ingestion and EDA are complete. Per-position mega tables (QB, RB, WR, TE) cover 2016–2025 with one row per player-season containing ADP, finish, PPG, career season number, prior-season stats, and advanced features as predictors. Feature engineering scripts for NGS, snap counts, seasonal advanced stats, and play-by-play are implemented and ready to run.
 
 | Source | Coverage | Notes |
 | --- | --- | --- |
-| nfl-data-py | 2019–2025 seasonal stats | All skill positions |
-| FantasyFootballCalculator API | 2019–2025 ADP | PPR / 12-team, top ~180 players per season |
+| nfl-data-py | 2016–2025 seasonal stats | All skill positions |
+| FantasyFootballCalculator API | 2016–2025 ADP | PPR / 12-team, top ~180 players per season |
 | DraftSharks | 2026 ADP | Top ~260 players |
 
 ## Data Sources
@@ -92,10 +92,10 @@ python ingest_draftsharks.py  # 2026 ADP from DraftSharks
 
 ## Roadmap
 
-- [x] **Phase 1** — Data ingestion + mega tables (2019–2025)
-- [ ] **Phase 2** — EDA on existing 2019–2025 mega tables (correlations, ADP-vs-finish, feature prioritization)
-- [ ] **Phase 3** — Bucket A feature pulls (seasonal, NGS, snap counts)
-- [ ] **Phase 4** — Extend mega tables to 2015 + Bucket B pbp features
+- [x] **Phase 1** — Data ingestion + mega tables (2016–2025)
+- [x] **Phase 2** — EDA: ADP vs finish, PPG correlations, player profiles, steal/bust analysis
+- [x] **Phase 3** — Bucket A feature scripts (seasonal advanced stats, NGS, snap counts)
+- [x] **Phase 4** — Bucket B play-by-play features (red zone, carry share, pressure rate, team pass rate)
 - [ ] **Phase 5** — Migrate PostgreSQL to AWS RDS
 - [ ] **Phase 6** — Baseline (Ridge) + XGBoost models per position + SHAP
 - [ ] **Phase 7** — FastAPI backend + Docker
